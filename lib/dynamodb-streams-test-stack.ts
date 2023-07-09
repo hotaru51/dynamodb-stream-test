@@ -1,11 +1,13 @@
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda'
+import * as apigw from 'aws-cdk-lib/aws-apigateway'
 import { Construct } from 'constructs';
 
 export class DynamodbStreamsTestStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // リクエスト受信用Lambda
     const receiveFunction = new lambda.Function(this, 'ReceiveFunction', {
       runtime: lambda.Runtime.PYTHON_3_10,
       handler: 'app.handler',
@@ -21,6 +23,15 @@ export class DynamodbStreamsTestStack extends cdk.Stack {
       }),
       functionName: 'dynamodb-streams-test-receive-function',
       memorySize: 128
+    })
+
+    // リクエスト受信用APi Gateway
+    const receiveApi = new apigw.LambdaRestApi(this, 'ReceiveApi', {
+      handler: receiveFunction,
+      restApiName: 'dynamodb-streams-test-api',
+      deployOptions: {
+        stageName: 'test'
+      }
     })
   }
 }
