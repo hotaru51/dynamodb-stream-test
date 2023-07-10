@@ -3,7 +3,6 @@ import * as lambda from 'aws-cdk-lib/aws-lambda'
 import * as apigw from 'aws-cdk-lib/aws-apigateway'
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
 import { Construct } from 'constructs';
-import {Table} from 'aws-cdk-lib/aws-dynamodb';
 
 export class DynamodbStreamsTestStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -37,7 +36,7 @@ export class DynamodbStreamsTestStack extends cdk.Stack {
     })
 
     // DynamoDB Table
-    const table = new Table(this, 'StreamsTestTable',{
+    const table = new dynamodb.Table(this, 'StreamsTestTable',{
       tableName: 'dynamodb-streams-test-table',
       partitionKey: {
         name: 'name',
