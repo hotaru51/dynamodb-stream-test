@@ -48,5 +48,6 @@ export class DynamodbStreamsTestStack extends cdk.Stack {
       writeCapacity: 1
     })
     table.grantWriteData(receiveFunction)
+    receiveFunction.addEnvironment('TABLE_NAME', table.tableName)
   }
 }
