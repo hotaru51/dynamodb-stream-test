@@ -2,6 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda'
 import * as apigw from 'aws-cdk-lib/aws-apigateway'
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
+import * as eventSource from 'aws-cdk-lib/aws-lambda-event-sources'
 import { Construct } from 'constructs';
 
 export class DynamodbStreamsTestStack extends cdk.Stack {
@@ -44,9 +45,29 @@ export class DynamodbStreamsTestStack extends cdk.Stack {
       },
       billingMode: dynamodb.BillingMode.PROVISIONED,
       readCapacity: 1,
-      writeCapacity: 1
+      writeCapacity: 1,
+      stream: dynamodb.StreamViewType.NEW_IMAGE
     })
     table.grantWriteData(receiveFunction)
     receiveFunction.addEnvironment('TABLE_NAME', table.tableName)
+
+    // DynamoDB Streamsイベント処理関数
+    const streamProcessingFunction = new lambda.Function(this, 'StreamProcessingFunction', {
+      runtime: lambda.Runtime.PYTHON_3_10,
+      handler: 'app.handler',
+      code: lambda.AssetCode.fromAsset('src/stream_processing_function'),
+      functionName: 'dynamodb-stream-test-stream-processing-function',
+      memorySize: 128
+    })
+
+    // DynamoDB Streamsイベント
+    // See [https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_dynamodb.StreamViewType.html]
+    streamProcessingFunction.addEventSource(new eventSource.DynamoEventSource(table, {
+      startingPosition: lambda.StartingPosition.LATEST,
+      batchSize: 10,
+      enabled: true,
+      filters: [lambda.FilterCriteria.filter({eventName: lambda.FilterRule.isEqual('INSERT')})],
+      maxBatchingWindow: cdk.Duration.seconds(10)
+    }))
   }
 }
