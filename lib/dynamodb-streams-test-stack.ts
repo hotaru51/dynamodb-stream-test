@@ -3,6 +3,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda'
 import * as apigw from 'aws-cdk-lib/aws-apigateway'
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
 import * as eventSource from 'aws-cdk-lib/aws-lambda-event-sources'
+import * as sns from 'aws-cdk-lib/aws-sns'
 import { Construct } from 'constructs';
 
 export class DynamodbStreamsTestStack extends cdk.Stack {
@@ -27,7 +28,7 @@ export class DynamodbStreamsTestStack extends cdk.Stack {
       memorySize: 128
     })
 
-    // リクエスト受信用APi Gateway
+    // リクエスト受信用API Gateway
     const receiveApi = new apigw.LambdaRestApi(this, 'ReceiveApi', {
       handler: receiveFunction,
       restApiName: 'dynamodb-streams-test-api',
@@ -55,7 +56,15 @@ export class DynamodbStreamsTestStack extends cdk.Stack {
     const streamProcessingFunction = new lambda.Function(this, 'StreamProcessingFunction', {
       runtime: lambda.Runtime.PYTHON_3_10,
       handler: 'app.handler',
-      code: lambda.AssetCode.fromAsset('src/stream_processing_function'),
+      code: lambda.AssetCode.fromAsset('src/stream_processing_function', {
+        bundling: {
+          image: lambda.Runtime.PYTHON_3_10.bundlingImage,
+          command: [
+            'bash', '-c',
+            'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output'
+          ]
+        }
+      }),
       functionName: 'dynamodb-stream-test-stream-processing-function',
       memorySize: 128
     })
@@ -69,5 +78,12 @@ export class DynamodbStreamsTestStack extends cdk.Stack {
       filters: [lambda.FilterCriteria.filter({eventName: lambda.FilterRule.isEqual('INSERT')})],
       maxBatchingWindow: cdk.Duration.seconds(10)
     }))
+
+    // SNS Topic
+    const topic = new sns.Topic(this, 'StreamTestTopic', {
+      topicName: 'dynamodb-streams-test-topic'
+    })
+    topic.grantPublish(streamProcessingFunction)
+    streamProcessingFunction.addEnvironment('TOPIC_ARN', topic.topicArn)
   }
 }
